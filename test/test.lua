@@ -1534,6 +1534,20 @@ function torchtest.eig()
    mytester:assertlt(maxdiff(vv,vvv),1e-12,'torch.eig value')
    mytester:assertlt(maxdiff(vv,tv),1e-12,'torch.eig value')
 end
+function torchtest.eig_reuse()
+   local X = torch.randn(4,4)
+   X = X:t()*X
+   local e, v = torch.zeros(2,4), torch.zeros(4,4)
+   torch.eig(e, v, X,'V')
+   local Xhat = v * torch.diag(e:select(2,1)) * v:t()
+   mytester:assertTensorEq(X, Xhat, 1e-8, 'VeV\' wrong')
+   mytester:assert(not v:isContiguous(), 'V is contiguous')
+
+   torch.eig(e, v, X, 'V')
+   local Xhat = torch.mm(v, torch.mm(e:select(2,1):diag(), v:t()))
+   mytester:assertTensorEq(X, Xhat, 1e-8, 'USV\' wrong')
+   mytester:assert(not v:isContiguous(), 'V is contiguous')
+end
 function torchtest.test_symeig()
   local xval = torch.rand(100,3)
   local cov = torch.mm(xval:t(), xval)
@@ -1571,7 +1585,17 @@ function torchtest.svd()
    mytester:asserteq(maxdiff(v,vv),0,'torch.svd')
    mytester:asserteq(maxdiff(v,vvv),0,'torch.svd')
 end
+function torchtest.svd_reuse()
+   local X = torch.randn(4,4)
+   local U, S, V = torch.svd(X)
+   local Xhat = torch.mm(U, torch.mm(S:diag(), V:t()))
+   mytester:assertTensorEq(X, Xhat, 1e-8, 'USV\' wrong')
 
+   mytester:assert(not U:isContiguous(), 'U is contiguous')
+   torch.svd(U, S, V, X)
+   local Xhat = torch.mm(U, torch.mm(S:diag(), V:t()))
+   mytester:assertTensorEq(X, Xhat, 1e-8, 'USV\' wrong')
+end
 function torchtest.conv2()
    local x = torch.rand(math.floor(torch.uniform(50,100)),math.floor(torch.uniform(50,100)))
    local k = torch.rand(math.floor(torch.uniform(10,20)),math.floor(torch.uniform(10,20)))

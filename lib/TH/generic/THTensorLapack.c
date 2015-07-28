@@ -286,7 +286,7 @@ void THTensor_(geev)(THTensor *re_, THTensor *rv_, THTensor *a_, const char *job
       re_data[2*i+1] = wi_data[i];
     }
   }
-  if (*jobvr == 'V')
+  if (*jobvr == 'V' && rv_->stride[0] == n && rv_->stride[1] == 1)
   {
     THTensor_(transpose)(rv_,NULL,0,1);
   }
@@ -409,7 +409,9 @@ void THTensor_(gesvd2)(THTensor *ru_, THTensor *rs_, THTensor *rv_, THTensor *ra
   {
     THTensor_(resize2d)(ru_,k,ldu);
   }
-  THTensor_(transpose)(ru_,NULL,0,1);
+  /* only transpose if it is not already transposed */
+  if (ru_->stride[0] == ru_->size[1] && ru_->stride[1] == 1)
+    THTensor_(transpose)(ru_,NULL,0,1);
   /* we want to return V not VT*/
   /*THTensor_(transpose)(rv_,NULL,0,1);*/
 
