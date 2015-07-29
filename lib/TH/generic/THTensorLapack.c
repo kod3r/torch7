@@ -3,6 +3,44 @@
 #else
 
 /*
+Check if self is transpose of a contiguous matrix
+*/
+static int THTensor_(isTransposed)(THTensor *self)
+{
+  return self->stride[0] == 1 && self->stride[1] == self->size[0];
+}
+/*
+If a matrix is a regular contiguous matrix, make sure it is transposed
+because this is what we return from Lapack calls.
+*/
+static void THTensor_(checkTransposed)(THTensor *self)
+{
+  if(THTensor_(isContiguous)(self))
+    THTensor_(transpose)(self, NULL, 0, 1);
+  return;
+}
+/*
+Similar to (newContiguous), but checks if the transpose of the matrix
+is contiguous and also limited to 2D matrices
+*/
+static THTensor *THTensor_(newTransposedContiguous)(THTensor *self)
+{
+  THTensor *tensor;
+  if(THTensor_(isTransposed)(self))
+  {
+    THTensor_(retain)(self);
+    tensor = self;
+  }
+  else
+  {
+    tensor = THTensor_(newContiguous)(self);
+    THTensor_(transpose)(tensor, NULL, 0, 1);
+  }
+
+  return tensor;
+}
+
+/*
   Puts a row-major version of m (suitable as an input for Lapack) with the specified number of rows into the
   storage of r_. If r_ is already row-major and has the correct number of rows, then r_ becomes a tensor
   pointing at the storage of m, and the function returns 0. Otherwise, r_ is resized and filled with a
@@ -12,7 +50,7 @@ static int THTensor_(lapackCloneNrows)(THTensor *r_, THTensor *m, int forced, in
 {
   int clone;
 
-  if (!forced && m->stride[0] == 1 && m->stride[1] == m->size[0] && m->size[1] == nrows)
+  if (!forced && THTensor_(isTransposed)(m) && m->size[1] == nrows)
   {
     clone = 0;
     THTensor_(set)(r_,m);
@@ -21,8 +59,7 @@ static int THTensor_(lapackCloneNrows)(THTensor *r_, THTensor *m, int forced, in
   {
     clone = 1;
     THTensor_(resize2d)(r_,m->size[1],nrows);
-    if (r_->stride[0] == nrows && r_->stride[1] == 1)
-      THTensor_(transpose)(r_,NULL,0,1);
+    THTensor_(checkTransposed)(r_);
     /* we need to copy */
     if (m->size[0] == nrows) {
       THTensor_(copy)(r_,m);
@@ -38,27 +75,6 @@ static int THTensor_(lapackCloneNrows)(THTensor *r_, THTensor *m, int forced, in
 static int THTensor_(lapackClone)(THTensor *r_, THTensor *m, int forced)
 {
   return THTensor_(lapackCloneNrows)(r_, m, forced, m->size[0]);
-}
-
-/*
-Similar to (newContiguous), but checks if the transpose of the matrix
-is contiguous and also limited to 2D matrices
-*/
-static THTensor *THTensor_(newTransposeContiguous)(THTensor *self)
-{
-  THTensor *tensor;
-  if(self->stride[0] == 1 && self->stride[1] == self->size[1])
-  {
-    THTensor_(retain)(self);
-    tensor = self;
-  }
-  else
-  {
-    tensor = THTensor_(newContiguous)(self);
-    THTensor_(transpose)(tensor, NULL, 0, 1);
-  }
-
-  return tensor;
 }
 
 void THTensor_(gesv)(THTensor *rb_, THTensor *ra_, THTensor *b, THTensor *a)
@@ -279,7 +295,7 @@ void THTensor_(geev)(THTensor *re_, THTensor *rv_, THTensor *a_, const char *job
   {
     THTensor_(resize2d)(rv_,n,n);
     /* guard against someone passing a correct size, but wrong stride */
-    rv__ = THTensor_(newTransposeContiguous)(rv_);
+    rv__ = THTensor_(newTransposedContiguous)(rv_);
     rv_data = THTensor_(data)(rv__);
     ldvr = n;
   }
@@ -338,8 +354,8 @@ void THTensor_(syev)(THTensor *re_, THTensor *rv_, THTensor *a, const char *jobz
   THTensor *work;
   real wkopt;
 
-  THTensor *rv__;
-  THTensor *re__;
+  THTensor *rv__ = NULL;
+  THTensor *re__ = NULL;
 
   int clonea;
   int destroy;
@@ -412,10 +428,10 @@ void THTensor_(gesvd2)(THTensor *ru_, THTensor *rs_, THTensor *rv_, THTensor *ra
   THTensor *work;
   real wkopt;
 
-  THTensor *ra__;
-  THTensor *ru__;
-  THTensor *rs__;
-  THTensor *rv__;
+  THTensor *ra__ = NULL;
+  THTensor *ru__ = NULL;
+  THTensor *rs__ = NULL;
+  THTensor *rv__ = NULL;
 
   int clonea;
   int destroy;
@@ -455,12 +471,10 @@ void THTensor_(gesvd2)(THTensor *ru_, THTensor *rs_, THTensor *rv_, THTensor *ra
   {
     THTensor_(resize2d)(ru_,k,ldu);
   }
-  /* only transpose if it is not already transposed */
-  if (ru_->stride[0] == ru_->size[1] && ru_->stride[1] == 1)
-    THTensor_(transpose)(ru_,NULL,0,1);
+  THTensor_(checkTransposed)(ru_);
 
   /* guard against someone passing a correct size, but wrong stride */
-  ru__ = THTensor_(newTransposeContiguous)(ru_);
+  ru__ = THTensor_(newTransposedContiguous)(ru_);
   rs__ = THTensor_(newContiguous)(rs_);
   rv__ = THTensor_(newContiguous)(rv_);
   
