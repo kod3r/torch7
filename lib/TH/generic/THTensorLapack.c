@@ -330,10 +330,8 @@ void THTensor_(geev)(THTensor *re_, THTensor *rv_, THTensor *a_, const char *job
       re_data[2*i+1] = wi_data[i];
     }
   }
-  if (*jobvr == 'V' && rv_->stride[0] == n && rv_->stride[1] == 1)
-  {
-    THTensor_(transpose)(rv_,NULL,0,1);
-  }
+  if (*jobvr == 'V')
+    THTensor_(checkTransposed)(rv_);
 
   if (*jobvr == 'V' && rv__ != rv_)
     THTensor_(copy)(rv_, rv__);
