@@ -300,7 +300,6 @@ void THTensor_(syev)(THTensor *re_, THTensor *rv_, THTensor *a, const char *jobz
   if (a == NULL) a = rv_;
   THArgCheck(a->nDimension == 2, 1, "A should be 2 dimensional");
 
-
   int n, lda, lwork, info;
   THTensor *work;
   real wkopt;
