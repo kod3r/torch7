@@ -42,44 +42,6 @@ static THTensor *THTensor_(newTransposedContiguous)(THTensor *self)
 }
 
 /*
-  Puts a row-major version of m (suitable as an input for Lapack) with the specified number of rows into the
-  storage of r_. If r_ is already row-major and has the correct number of rows, then r_ becomes a tensor
-  pointing at the storage of m, and the function returns 0. Otherwise, r_ is resized and filled with a
-  row-major copy of m; the function then returns 1.
-*/
-static int THTensor_(lapackCloneNrows)(THTensor *r_, THTensor *m, int forced, int nrows)
-{
-  int clone;
-
-  if (!forced && THTensor_(isTransposed)(m) && m->size[1] == nrows)
-  {
-    clone = 0;
-    THTensor_(set)(r_,m);
-  }
-  else
-  {
-    clone = 1;
-    THTensor_(resize2d)(r_,m->size[1],nrows);
-    THTensor_(checkTransposed)(r_);
-    /* we need to copy */
-    if (m->size[0] == nrows) {
-      THTensor_(copy)(r_,m);
-    } else {
-      THTensor* r_view = THTensor_(newNarrow)(r_,0,0,m->size[0]);
-      THTensor_(copy)(r_view,m);
-      THTensor_(free)(r_view);
-    }
-  }
-  return clone;
-}
-
-static int THTensor_(lapackClone)(THTensor *r_, THTensor *m, int forced)
-{
-  return THTensor_(lapackCloneNrows)(r_, m, forced, m->size[0]);
-}
-
-
-/*
 Given the result tensor and src tensor, decide if the lapack call should use the
 provided result tensor or should allocate a new space to put the result in.
 
