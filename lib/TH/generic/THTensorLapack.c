@@ -5,7 +5,7 @@
 /*
 Check if self is transpose of a contiguous matrix
 */
-static int THTensor_(isTransposed)(THTensor *self)
+static int THTensor_(isTransposedContiguous)(THTensor *self)
 {
   return self->stride[0] == 1 && self->stride[1] == self->size[0];
 }
@@ -27,7 +27,7 @@ is contiguous and also limited to 2D matrices.
 static THTensor *THTensor_(newTransposedContiguous)(THTensor *self)
 {
   THTensor *tensor;
-  if(THTensor_(isTransposed)(self))
+  if(THTensor_(isTransposedContiguous)(self))
   {
     THTensor_(retain)(self);
     tensor = self;
@@ -53,7 +53,7 @@ input space, like underdetermined gels.
 static THTensor *THTensor_(checkLapackClone)(THTensor *result, THTensor *src, int nrows)
 {
   /* check if user wants to reuse src and if it is correct shape/size */
-  if (src == result && THTensor_(isTransposed)(src) && src->size[1] == nrows)
+  if (src == result && THTensor_(isTransposedContiguous)(src) && src->size[1] == nrows)
     THTensor_(retain)(result);
   else if(src == result || result == NULL) /* in this case, user wants reuse of src, but its structure is not OK */
     result = THTensor_(new)();
@@ -105,9 +105,9 @@ void THTensor_(gesv)(THTensor *rb_, THTensor *ra_, THTensor *b, THTensor *a)
 {
   if (a == NULL) a = ra_;
   if (b == NULL) b = rb_;
-  THArgCheck(a->nDimension == 2, 1, "A should be 2 dimensional");
-  THArgCheck(b->nDimension == 2, 2, "B should be 2 dimensional");
-  THArgCheck(a->size[0] == a->size[1], 1, "A should be square");
+  THArgCheck(a->nDimension == 2, 2, "A should be 2 dimensional");
+  THArgCheck(b->nDimension == 2, 1, "B should be 2 dimensional");
+  THArgCheck(a->size[0] == a->size[1], 2, "A should be square");
   THArgCheck(a->size[0] == b->size[0], 2, "A,b size incompatible");
 
   int n, nrhs, lda, ldb, info;
@@ -140,8 +140,8 @@ void THTensor_(gels)(THTensor *rb_, THTensor *ra_, THTensor *b, THTensor *a)
   // Note that a = NULL is interpreted as a = ra_, and b = NULL as b = rb_.
   if (a == NULL) a = ra_;
   if (b == NULL) b = rb_;
-  THArgCheck(a->nDimension == 2, 1, "A should be 2 dimensional");
-  THArgCheck(b->nDimension == 2, 2, "B should be 2 dimensional");
+  THArgCheck(a->nDimension == 2, 2, "A should be 2 dimensional");
+  THArgCheck(b->nDimension == 2, 1, "B should be 2 dimensional");
   THArgCheck(a->size[0] == b->size[0], 2, "size incompatible A,b");
 
   int m, n, nrhs, lda, ldb, info, lwork;
@@ -197,8 +197,8 @@ void THTensor_(geev)(THTensor *re_, THTensor *rv_, THTensor *a_, const char *job
   THTensor *re__ = NULL;
   THTensor *rv__ = NULL;
 
-  THArgCheck(a_->nDimension == 2, 3, "A should be 2 dimensional");
-  THArgCheck(a_->size[0] == a_->size[1], 3,"A should be square");
+  THArgCheck(a_->nDimension == 2, 1, "A should be 2 dimensional");
+  THArgCheck(a_->size[0] == a_->size[1], 1,"A should be square");
 
   /* we want to definitely clone a_ for geev*/
   a = THTensor_(cloneColumnMajor)(NULL, a_);
@@ -402,7 +402,7 @@ void THTensor_(potrf)(THTensor *ra_, THTensor *a)
 {
   if (a == NULL) a = ra_;
   THArgCheck(a->nDimension == 2, 1, "A should be 2 dimensional");
-  THArgCheck(a->size[0] == a->size[1], 2, "A should be square");
+  THArgCheck(a->size[0] == a->size[1], 1, "A should be square");
 
   int n, lda, info;
   char uplo = 'U';
@@ -435,7 +435,7 @@ void THTensor_(potri)(THTensor *ra_, THTensor *a)
 {
   if (a == NULL) a = ra_;
   THArgCheck(a->nDimension == 2, 1, "A should be 2 dimensional");
-  THArgCheck(a->size[0] == a->size[1], 2, "A should be square");
+  THArgCheck(a->size[0] == a->size[1], 1, "A should be square");
 
   int n, lda, info;
   char uplo = 'U';
